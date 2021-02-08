@@ -313,6 +313,46 @@ urlpatterns = [
 
 ## Create charts using chart.js
 
+Explanation of how to create a simple chart, what you have to provide:
+
+Create a canvas:
+
+```html
+<canvas id="myChart"></canvas>
+```
+
+Creating a sample chart:
+
+```html
+<script>
+    var ctx = document.getElementById('myChart').getContext('2d');
+    var chart = new Chart(ctx, {
+        // The type of chart we want to create
+        type: 'line',
+
+        // The data for our dataset
+        data: {
+            labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
+            datasets: [{
+                label: 'My First dataset',
+                backgroundColor: 'rgb(255, 99, 132)',
+                borderColor: 'rgb(255, 99, 132)',
+                data: [0, 10, 5, 2, 20, 30, 45]
+            }]
+        },
+
+        // Configuration options go here
+        options: {}
+    });
+</script>
+```
+
+### Add chart.js
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
+```
+
 Add the following HTML:
 
 ```html
