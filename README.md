@@ -518,6 +518,136 @@ we can use two different approaches:
 
 ### Adding new admin views
 
+Put the statistics file into *shop/templates/shop/admin/statistics.html*.
+
+```python
+# core/admin.py
+
+from django.contrib import admin
+from django.contrib.admin.views.decorators import staff_member_required
+from django.shortcuts import render
+from django.urls import path
+
+
+@staff_member_required
+def admin_statistics_view(request):
+    return render(request, 'shop/admin/statistics.html', {
+        'title': 'Statistics'
+    })
+
+
+class CustomAdminSite(admin.AdminSite):
+    def get_app_list(self, request):
+        app_list = super().get_app_list(request)
+        app_list += [
+            {
+                "name": "My Custom App",
+                "app_label": "my_custom_app",
+                "models": [
+                    {
+                        "name": "Statistics",
+                        "object_name": "statistics",
+                        "admin_url": "/admin/statistics",
+                        "view_only": True,
+                    }
+                ],
+            }
+        ]
+        return app_list
+
+    def get_urls(self):
+        urls = super().get_urls()
+        urls += [
+            path('statistics/', admin_statistics_view, name='admin-statistics'),
+        ]
+        return urls
+from django.contrib import admin
+from django.contrib.admin.views.decorators import staff_member_required
+from django.shortcuts import render
+from django.urls import path
+
+
+@staff_member_required
+def admin_statistics_view(request):
+    return render(request, 'shop/admin/statistics.html', {
+        'title': 'Statistics'
+    })
+
+
+class CustomAdminSite(admin.AdminSite):
+    def get_app_list(self, request):
+        app_list = super().get_app_list(request)
+        app_list += [
+            {
+                "name": "My Custom App",
+                "app_label": "my_custom_app",
+                "models": [
+                    {
+                        "name": "Statistics",
+                        "object_name": "statistics",
+                        "admin_url": "/admin/statistics",
+                        "view_only": True,
+                    }
+                ],
+            }
+        ]
+        return app_list
+
+    def get_urls(self):
+        urls = super().get_urls()
+        urls += [
+            path('statistics/', admin_statistics_view, name='admin-statistics'),
+        ]
+        return urls
+```
+
+```python
+# core/apps.py
+
+from django.contrib import admin
+from django.contrib.admin.views.decorators import staff_member_required
+from django.shortcuts import render
+from django.urls import path
+
+
+@staff_member_required
+def admin_statistics_view(request):
+    return render(request, 'shop/admin/statistics.html', {
+        'title': 'Statistics'
+    })
+
+
+class CustomAdminSite(admin.AdminSite):
+    def get_app_list(self, request):
+        app_list = super().get_app_list(request)
+        app_list += [
+            {
+                "name": "My Custom App",
+                "app_label": "my_custom_app",
+                "models": [
+                    {
+                        "name": "Statistics",
+                        "object_name": "statistics",
+                        "admin_url": "/admin/statistics",
+                        "view_only": True,
+                    }
+                ],
+            }
+        ]
+        return app_list
+
+    def get_urls(self):
+        urls = super().get_urls()
+        urls += [
+            path('statistics/', admin_statistics_view, name='admin-statistics'),
+        ]
+        return urls
+```
+
 ### Overriding Django admin templates
 
+You can override any admin template by.
+
 ## Conclusion
+
+We learned how to create simple charts using chart.js and Django.
