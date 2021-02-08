@@ -315,7 +315,7 @@ urlpatterns = [
 
 Add the following HTML:
 
-```htmlembedded=
+```html
 {% extends "admin/base_site.html" %}
 
 {% block content %}
