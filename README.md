@@ -1,21 +1,29 @@
 # Django Interactive Charts
 
-what we are building, code flow
+In this tutorial we'll look at how to create interactive charts using [Django](https://www.djangoproject.com/) and [Chart.js](https://www.chartjs.org/). We will use Django to model and prepare our data and then fetch it asynchronously from our template using an AJAX request.
 
-## What is chart.js
+## What is Chart.js
 
-[Chart.js](https://www.chartjs.org/) is a free open-source JavaScript library for data visualization. It supports eight different chart types: bar, line, area, pie, bubble, radar, polar, and scatter. It is flexible, highly customizable, has built-in animations and is easy to use.
+[Chart.js](https://www.chartjs.org/) is a free open-source JavaScript library for data visualization. It supports eight different chart types: bar, line, area, pie, bubble, radar, polar, and scatter. It is flexible, highly customizable, supports animations and is extremely easy to use.
 
-> You can swap [chart.js]() for any other JavaScript chart library.
+> You can swap [Chart.js](https://www.chartjs.org/) for any other JavaScript chart library like [D3.js](https://d3js.org/) or [morris.js](http://morrisjs.github.io/morris.js/). However, you will have to adjust the data format in your application's endpoints.
 
 ## Project Setup
 
-xyz
+We are going to create a simple shop application for tracking items and sales. We will generate sample data using a function and then visualize it using interactive charts. At the end we will also take a look at how we can integrate the charts into our Django administration dashboard.
 
-Start by setting up a new Django project:
+Our code flow is going to be the following:
+
+1. Fetch data using Django ORM queries
+1. Format the data to the proper format
+1. Serve the data from a protected endpoint
+1. Request the data using AJAX
+1. Initialize charts and load in the data
+
+Start by creating a new directory and setting up a new Django project:
 
 ```sh
-$ mkdir django-with-pydantic && cd django-with-pydantic
+$ mkdir django-interactive-charts && cd django-interactive-charts
 $ python3.9 -m venv env
 $ source env/bin/activate
 
@@ -23,10 +31,10 @@ $ source env/bin/activate
 (env)$ django-admin.py startproject core .
 ```
 
-After that, create a new app called `blog`:
+After that, create a new app called `shop`:
 
 ```sh
-(env)$ python manage.py startapp blog
+(env)$ python manage.py startapp shop
 ```
 
 Register the app in *core/settings.py* under `INSTALLED_APPS`:
@@ -41,7 +49,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'blog.apps.BlogConfig', # new
+    'blog.apps.ShopConfig', # new
 ]
 ```
 
@@ -84,6 +92,9 @@ class Purchase(models.Model):
         return f'{self.customer_full_name}, {self.payment_method} ({self.item.name})'
 ```
 
+1. `Item` - represents a sample item from our store
+1. `Purchase` - represents each purchase (it is linked to an Item)
+
 Create then apply the migrations:
 
 ```python 
@@ -107,13 +118,12 @@ admin.site.register(Purchase)
 
 ### Populate the Database
 
-Now let's populate our database so we 
+In order to create charts we first need some data to work with. I've prepared a simple function which we will register as a Django command and use in order to generate some sample data.
 
-Create the folder management and within the folder create another folder called commands. Then put the following inside *populate_db.py*:
+Move to the *shop* directory and create a new folder called *management* inside that folder create another folder called *commands*. Now create a new file inside that folder called *populate_db.py* and put the following inside:
 
 ```python
 # shop/management/commands/populate_db.py
-
   
 import random
 from datetime import datetime, timedelta
@@ -154,21 +164,25 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('Successfully populated the database.'))
 ```
 
+This command generates a few sample items and creates sample purchases.
+
 Run the following command to populate the DB:
 
 ```ssh
 (venv)$ python manage.py populate_db --amount 2500
 ```
 
+> You can specify a custom amount, the amount represents the number of purchases.
+
 ## Prepare and serve the data
 
 Our app is going to have the following endpoints:
 
-1. `chart/filter-options/` description
-1. `chart/sales/<YEAR>/` description
-1. `chart/spend-per-customer/<YEAR>/` description
-1. `chart/payment-success/YEAR/` description
-1. `chart/payment-method/YEAR/` description
+1. `chart/filter-options/` lists all the years we have the records for
+1. `chart/sales/<YEAR>/` fetches monthly gross volume data
+1. `chart/spend-per-customer/<YEAR>/` monthly spend per customer data
+1. `chart/payment-success/YEAR/` yearly success data
+1. `chart/payment-method/YEAR/` yearly payment method data
 
 Create the views:
 
@@ -561,87 +575,30 @@ class CustomAdminSite(admin.AdminSite):
             path('statistics/', admin_statistics_view, name='admin-statistics'),
         ]
         return urls
-from django.contrib import admin
-from django.contrib.admin.views.decorators import staff_member_required
-from django.shortcuts import render
-from django.urls import path
-
-
-@staff_member_required
-def admin_statistics_view(request):
-    return render(request, 'shop/admin/statistics.html', {
-        'title': 'Statistics'
-    })
-
-
-class CustomAdminSite(admin.AdminSite):
-    def get_app_list(self, request):
-        app_list = super().get_app_list(request)
-        app_list += [
-            {
-                "name": "My Custom App",
-                "app_label": "my_custom_app",
-                "models": [
-                    {
-                        "name": "Statistics",
-                        "object_name": "statistics",
-                        "admin_url": "/admin/statistics",
-                        "view_only": True,
-                    }
-                ],
-            }
-        ]
-        return app_list
-
-    def get_urls(self):
-        urls = super().get_urls()
-        urls += [
-            path('statistics/', admin_statistics_view, name='admin-statistics'),
-        ]
-        return urls
 ```
 
 ```python
 # core/apps.py
 
-from django.contrib import admin
-from django.contrib.admin.views.decorators import staff_member_required
-from django.shortcuts import render
-from django.urls import path
+from django.contrib.admin.apps import AdminConfig
 
 
-@staff_member_required
-def admin_statistics_view(request):
-    return render(request, 'shop/admin/statistics.html', {
-        'title': 'Statistics'
-    })
+class CustomAdminConfig(AdminConfig):
+    default_site = 'core.admin.CustomAdminSite'
+```
 
+Register the new AdminConfig in *settings.py*:
 
-class CustomAdminSite(admin.AdminSite):
-    def get_app_list(self, request):
-        app_list = super().get_app_list(request)
-        app_list += [
-            {
-                "name": "My Custom App",
-                "app_label": "my_custom_app",
-                "models": [
-                    {
-                        "name": "Statistics",
-                        "object_name": "statistics",
-                        "admin_url": "/admin/statistics",
-                        "view_only": True,
-                    }
-                ],
-            }
-        ]
-        return app_list
-
-    def get_urls(self):
-        urls = super().get_urls()
-        urls += [
-            path('statistics/', admin_statistics_view, name='admin-statistics'),
-        ]
-        return urls
+```python
+INSTALLED_APPS = [
+    'core.apps.CustomAdminConfig',  # replaced
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'shop.apps.ShopConfig',
+]
 ```
 
 ### Overriding Django admin templates
