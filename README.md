@@ -184,6 +184,45 @@ Our app is going to have the following endpoints:
 1. `chart/payment-success/YEAR/` yearly success data
 1. `chart/payment-method/YEAR/` yearly payment method data
 
+Before writing our *shop*'s' views let's create an util class which will come in handy when creating charts. Move to our project root and create a new directory called *util* and inside of this directory create a file called *charts.py*:
+
+```python
+# util/charts.py
+
+months = [
+    'January', 'February', 'March', 'April',
+    'May', 'June', 'July', 'August',
+    'September', 'October', 'November', 'December'
+]
+colorPalette = ['#55efc4', '#81ecec', '#a29bfe', '#ffeaa7', '#fab1a0', '#ff7675', '#fd79a8']
+colorPrimary, colorSuccess, colorDanger = '#79aec8', colorPalette[0], colorPalette[5]
+
+
+def get_year_dict():
+    dictionary = dict()
+
+    for month in months:
+        dictionary[month] = 0
+
+    return dictionary
+
+
+def generate_color_palette(amount):
+    palette = []
+    i = 0
+    while i < len(colorPalette) and len(palette) < amount:
+        palette.append(colorPalette[i])
+        i += 1
+        if i == len(colorPalette) and len(palette) < amount:
+            i = 0
+    return palette
+```
+
+In this util file we defined our chart colors and created the following two methods:
+
+1. `get_year_dict()` prepares a dictionary `(<MONTH>, 0)` which we are going to use to fill in the monthly data.
+1. `generate_color_palette(amount)` generates a repeating color palette that we will pass to our charts.
+
 Create the views:
 
 ```python
@@ -307,7 +346,9 @@ def payment_method_chart(request, year):
     })
 ```
 
-Hook up the urls:
+!! Explain every method
+
+Create urls for our views:
 
 ```python
 # shop/urls.py
@@ -325,7 +366,67 @@ urlpatterns = [
 ]
 ```
 
+Connect *shop.urls* to our root urls:
+
+```python
+# core/urls.py
+
+from django.contrib import admin
+from django.urls import path, include
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('shop/', include('shop.urls')),  # new
+]
+```
+
+Now that we registered the urls, let's test the endpoints to see if everything works correctly. Firstly, visit [http://localhost:8000/shop/chart/filter-options/](http://localhost:8000/shop/chart/filter-options/). It should return something like this:
+
+```json
+{
+    "options":[
+        2021,
+        2020,
+        2019,
+        2018,
+        2017,
+        2016
+    ]
+}
+```
+
+Pick a year and let's take a look at the sales data for it. Visit [http://localhost:8000/shop/chart/sales/2020/](http://localhost:8000/shop/chart/sales/2020/). You should see something like this:
+
+```json
+{
+   "title":"Sales in 2020",
+   "data":{
+      "labels":[
+         "January",
+         "February",
+         "March",
+         ...
+      ],
+      "datasets":[
+         {
+            "label":"Amount ($)",
+            "backgroundColor":"#79aec8",
+            "borderColor":"#79aec8",
+            "data":[
+               477,
+               552.5,
+               529.5,
+               ...
+            ]
+         }
+      ]
+   }
+}
+```
+
 ## Create charts using chart.js
+
+Chart.js expects three lists for its charts: a list of labels, a list of values, and a list of colours (in hex-codes). We’re using the zip function with * to iterate through lists of tuples [(label, value), (label value)].
 
 Explanation of how to create a simple chart, what you have to provide:
 
@@ -363,6 +464,8 @@ Creating a sample chart:
 
 ### Add chart.js
 
+We also added bootstrap-grid and jquery explain!!
+
 ```html
 <script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
 ```
@@ -381,65 +484,6 @@ Add the following HTML:
         <select name="year" id="year"></select>
         <input type="submit" value="Load" name="_load">
     </form>
-    <script>
-        $(document).ready(function() {
-            $.ajax({
-                url: "/shop/chart/filter-options/",
-                type: "GET",
-                dataType: "json",
-                success: (jsonResponse) => {
-                    // Load all the options
-                    jsonResponse.options.forEach(option => {
-                        $("#year").append(new Option(option, option));
-                    });
-                    // Load data for the first option
-                    loadAllCharts($("#year").children().first().val());
-                },
-                error: () => console.log("Failed to fetch chart filter options!")
-            });
-        });
-
-        $("#filterForm").on('submit', (event) => {
-            event.preventDefault();
-
-            const year = $("#year").val();
-            loadAllCharts(year)
-        });
-
-        function loadChart(chart, endpoint) {
-            $.ajax({
-                url: endpoint,
-                type: "GET",
-                dataType: "json",
-                success: (jsonResponse) => {
-                    // Extract data from the response
-                    const title = jsonResponse.title;
-                    const labels = jsonResponse.data.labels;
-                    const datasets = jsonResponse.data.datasets;
-
-                    // Reset the current chart
-                    chart.data.datasets = [];
-                    chart.data.labels = [];
-
-                    // Load new data into the chart
-                    chart.options.title.text = title;
-                    chart.data.labels = labels;
-                    datasets.forEach(dataset => {
-                        chart.data.datasets.push(dataset);
-                    });
-                    chart.update();
-                },
-                error: () => console.log("Failed to fetch chart data from " + endpoint + "!")
-            });
-        }
-
-        function loadAllCharts(year) {
-            loadChart(salesChart, `/shop/chart/sales/${year}/`);
-            loadChart(spendPerCustomerChart, `/shop/chart/spend-per-customer/${year}/`);
-            loadChart(paymentSuccessChart, `/shop/chart/payment-success/${year}/`);
-            loadChart(paymentMethodChart, `/shop/chart/payment-method/${year}/`);
-        }
-    </script>
     <div class="row">
         <div class="col-6">
             <canvas id="salesChart"></canvas>
@@ -522,6 +566,70 @@ Add the following HTML:
 1. Explanation 1
 1. Explanation 2
 1. Explanation 3
+
+Chart functions:
+
+```html
+<script>
+    $(document).ready(function() {
+        $.ajax({
+            url: "/shop/chart/filter-options/",
+            type: "GET",
+            dataType: "json",
+            success: (jsonResponse) => {
+                // Load all the options
+                jsonResponse.options.forEach(option => {
+                    $("#year").append(new Option(option, option));
+                });
+                // Load data for the first option
+                loadAllCharts($("#year").children().first().val());
+            },
+            error: () => console.log("Failed to fetch chart filter options!")
+        });
+    });
+
+    $("#filterForm").on('submit', (event) => {
+        event.preventDefault();
+
+        const year = $("#year").val();
+        loadAllCharts(year)
+    });
+
+    function loadChart(chart, endpoint) {
+        $.ajax({
+            url: endpoint,
+            type: "GET",
+            dataType: "json",
+            success: (jsonResponse) => {
+                // Extract data from the response
+                const title = jsonResponse.title;
+                const labels = jsonResponse.data.labels;
+                const datasets = jsonResponse.data.datasets;
+
+                // Reset the current chart
+                chart.data.datasets = [];
+                chart.data.labels = [];
+
+                // Load new data into the chart
+                chart.options.title.text = title;
+                chart.data.labels = labels;
+                datasets.forEach(dataset => {
+                    chart.data.datasets.push(dataset);
+                });
+                chart.update();
+            },
+            error: () => console.log("Failed to fetch chart data from " + endpoint + "!")
+        });
+    }
+
+    function loadAllCharts(year) {
+        loadChart(salesChart, `/shop/chart/sales/${year}/`);
+        loadChart(spendPerCustomerChart, `/shop/chart/spend-per-customer/${year}/`);
+        loadChart(paymentSuccessChart, `/shop/chart/payment-success/${year}/`);
+        loadChart(paymentMethodChart, `/shop/chart/payment-method/${year}/`);
+    }
+</script>
+```
 
 ## Add charts to Django admin
 
@@ -608,3 +716,5 @@ You can override any admin template by.
 ## Conclusion
 
 We learned how to create simple charts using chart.js and Django.
+
+Grab the code from the [django-interactive-charts](https://github.com/duplxey/django-interactive-charts) repo on GitHub.
