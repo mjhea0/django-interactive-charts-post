@@ -1,10 +1,10 @@
 # Django Interactive Charts
 
-In this tutorial we'll look at how to create interactive charts using [Django](https://www.djangoproject.com/) and [Chart.js](https://www.chartjs.org/). We will use Django to model and prepare our data and then fetch it asynchronously from our template using an AJAX request.
+In this tutorial we'll look at how to create interactive charts using [Django](https://www.djangoproject.com/) and [Chart.js](https://www.chartjs.org/). We will use Django to model and prepare the data and then fetch it asynchronously from our template using AJAX.
 
 ## What is Chart.js
 
-[Chart.js](https://www.chartjs.org/) is a free open-source JavaScript library for data visualization. It supports eight different chart types: bar, line, area, pie, bubble, radar, polar, and scatter. It is flexible, highly customizable, supports animations and is extremely easy to use.
+[Chart.js](https://www.chartjs.org/) is a free open-source JavaScript library for data visualization. It supports eight different chart types: bar, line, area, pie, bubble, radar, polar, and scatter. It is flexible, highly customizable, supports animations and is easy to use.
 
 Let's look at an example. Firstly, you have to include the library:
 
@@ -49,7 +49,7 @@ This code creates the following chart:
 
 ## Project Setup
 
-We are going to create a simple shop application for tracking items and purchases. We will generate sample data using a function and then visualize it with interactive charts. At the end we will also take a look at how we can integrate the charts into our Django administration dashboard.
+We are going to create a simple shop application. We will generate sample data using a function and then visualize it using charts. At the end we will also take a look at how we can integrate the charts into our Django administration dashboard.
 
 > You can swap [Chart.js](https://www.chartjs.org/) for any other JavaScript chart library like [D3.js](https://d3js.org/) or [morris.js](http://morrisjs.github.io/morris.js/). However, you will have to adjust the data format in your application's endpoints.
 
@@ -158,9 +158,9 @@ admin.site.register(Purchase)
 
 ### Populate the Database
 
-In order to create charts we first need some data to work with. I've prepared a simple function which we will register as a Django command and use in order to generate some sample data.
+In order to create charts we first need some data to work with. I've created a simple command we can use to populate the database.
 
-Move to the *shop* directory and create a new folder called *management*, inside that folder create another folder called *commands*. Inside of the *commands* folder create a new file called *populate_db.py* and put the following inside:
+Move to the *shop* directory and create a new folder called *management*, inside that folder create another folder called *commands*. Inside of the *commands* folder create a new file called *populate_db.py* and put the following code inside:
 
 ```python
 # shop/management/commands/populate_db.py
@@ -218,14 +218,13 @@ If everything went successfully you should see `Successfully populated the datab
 
 Our app is going to have the following endpoints:
 
-1. `statistics/` is going to display the charts
 1. `chart/filter-options/` lists all the years we have the records for
 1. `chart/sales/<YEAR>/` fetches monthly gross volume data
 1. `chart/spend-per-customer/<YEAR>/` fetches monthly spend per customer data
-1. `chart/payment-success/YEAR/` fetches yearly success data
+1. `chart/payment-success/YEAR/` fetches yearly payment success data
 1. `chart/payment-method/YEAR/` fetches yearly payment method data
 
-Before writing our *shop*'s' views let's create an util class which will come in handy when creating charts. Move to our project root and create a new directory called *util* and inside of this directory create a file called *charts.py*:
+Before writing our *shop* views let's create an util class which will come in handy when creating charts. Move to our project root and create a new directory called *util* and inside of this directory create a file called *charts.py*:
 
 ```python
 # util/charts.py
@@ -389,12 +388,6 @@ def payment_method_chart(request, year):
     })
 ```
 
-1. `get_filter_options(request)`
-1. `get_sales_chart(request, year)`
-1. `spend_per_customer_chart(request, year)`
-1. `payment_success_chart(request, year)`
-1. `payment_method_chart(request, year)`
-
 > Note that all the views have `@staff_member_required` decorator.
 
 ### Urls
@@ -448,7 +441,7 @@ Now that we registered the urls, let's test the endpoints to see if everything w
 }
 ```
 
-Pick a year and let's take a look at the sales data for it. Visit [http://localhost:8000/shop/chart/sales/2020/](http://localhost:8000/shop/chart/sales/2020/). You should see something like this:
+Pick a year and let's take a look at the sales data for it. Visit [http://localhost:8000/shop/chart/sales/2020/](http://localhost:8000/shop/chart/sales/2020/). It should return sale data for year `2020`:
 
 ```json
 {
@@ -565,7 +558,7 @@ For now create a new file called *statistics.html* inside the shop templates fol
 {% endblock %}
 ```
 
-This block of code creates the canvases and initializes the charts.
+This block of code creates the HTML5 canvases which charts use to initialize. We also passed `responsive` to each charts' options so it adjusts based on the window size. 
 
 Add the following script to your HTML file:
 
@@ -637,9 +630,11 @@ When the page loads this script sends an AJAX request to `/chart/filter-options/
 1. `loadChart` loads chart data from the Django endpoint into the chart
 2. `loadAllCharts` loads all the charts
 
+> Note that we used jQuery's AJAX function. Feel free to use plain JavaScript requests.
+
 ### Create a view and assign it an URL
 
-> In this step we are going to create a normal view and assign an URL to it. If you want to add charts to your admin dashboard skip to the next step.
+> In this step we are going to create a normal view and assign an URL to it. If you want to add charts to Django admin skip to the next step.
 
 Inside *shop/urls.py* create a new view:
 
@@ -651,7 +646,7 @@ def statistics_view(request):
     return render(request, "shop/statistics.html", {})
 ```
 
-Assign an URL to the view:
+Assign a URL to the view:
 
 ```python
 # shop/urls.py
@@ -679,7 +674,7 @@ We have multiple approaches to integrate charts to our Django administration. We
 
 ### Create a new Django admin view
 
-Creating a new Django admin view is the cleanest and the most straight forward approach. In this approach we are going to have to create a new `AdminSite` and change it in our *settings.py*.
+Creating a new Django admin view is the cleanest and the most straight forward approach. In this approach we are going to create a new `AdminSite` and change it in our *settings.py*.
 
 Firstly, create the templates directory inside your shop application, then create a shop directory then an admin directory and finally create *statistics.html* inside.
 
@@ -772,6 +767,6 @@ Final result:
 
 ## Conclusion
 
-We learned how to create simple charts using chart.js and Django.
+In this article we learned how to serve data with Django and then visualize it using Chart.js. We also looked at three different approaches we can use to integrate charts into your Django administration.
 
 Grab the code from the [django-interactive-charts](https://github.com/duplxey/django-interactive-charts) repo on GitHub.
