@@ -6,18 +6,58 @@ In this tutorial we'll look at how to create interactive charts using [Django](h
 
 [Chart.js](https://www.chartjs.org/) is a free open-source JavaScript library for data visualization. It supports eight different chart types: bar, line, area, pie, bubble, radar, polar, and scatter. It is flexible, highly customizable, supports animations and is extremely easy to use.
 
-> You can swap [Chart.js](https://www.chartjs.org/) for any other JavaScript chart library like [D3.js](https://d3js.org/) or [morris.js](http://morrisjs.github.io/morris.js/). However, you will have to adjust the data format in your application's endpoints.
+Let's look at an example. Firstly, you have to include the library:
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
+```
+
+Then create a new HTML5 canvas and assign an ID to it:
+
+```html
+<canvas id="chart"></canvas>
+```
+
+Lastly, you have to get your canvas using JavaScript and create a new chart like so:
+
+```html
+let ctx = document.getElementById('chart').getContext('2d');
+let chart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: ['2020/Q1', '2020/Q2', '2020/Q3', '2020/Q4'],
+        datasets: [{
+            label: 'Gross volume ($)',
+            backgroundColor: '#79AEC8',
+            borderColor: '#417690',
+            data: [26900, 28700, 27300, 29200]
+        }]
+    },
+    options: {
+        title: {
+            text: "Gross Volume in 2020",
+            display: true,
+        }
+    }
+});
+```
+
+This code creates the following chart:
+![Chart example](https://i.ibb.co/Rpt09xL/gross-volume-2020.png)
+
+> To learn more about Chart.js start by reading the [official documentation](https://www.chartjs.org/docs/latest/).
 
 ## Project Setup
 
-We are going to create a simple shop application for tracking items and sales. We will generate sample data using a function and then visualize it using interactive charts. At the end we will also take a look at how we can integrate the charts into our Django administration dashboard.
+We are going to create a simple shop application for tracking items and purchases. We will generate sample data using a function and then visualize it with interactive charts. At the end we will also take a look at how we can integrate the charts into our Django administration dashboard.
+
+> You can swap [Chart.js](https://www.chartjs.org/) for any other JavaScript chart library like [D3.js](https://d3js.org/) or [morris.js](http://morrisjs.github.io/morris.js/). However, you will have to adjust the data format in your application's endpoints.
 
 Our code flow is going to be the following:
 
 1. Fetch data using Django ORM queries
-1. Format the data to the proper format
-1. Serve the data from a protected endpoint
-1. Request the data using AJAX
+1. Format the data and return it in a protected endpoint
+1. Request the data from a template using AJAX
 1. Initialize charts and load in the data
 
 Start by creating a new directory and setting up a new Django project:
@@ -49,13 +89,13 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'blog.apps.ShopConfig', # new
+    'shop.apps.ShopConfig', # new
 ]
 ```
 
 ### Create Database Models
 
-Next, let's create the `Item` and the `Purchase` model.
+Next, create the `Item` and the `Purchase` model.
 
 ```python
 # shop/models.py
@@ -92,17 +132,17 @@ class Purchase(models.Model):
         return f'{self.customer_full_name}, {self.payment_method} ({self.item.name})'
 ```
 
-1. `Item` - represents a sample item from our store
-1. `Purchase` - represents each purchase (it is linked to an Item)
+1. `Item` represents an item in our store
+1. `Purchase` represents a purchase (that is linked to an Item)
 
-Create then apply the migrations:
+Make migrations and then apply them:
 
 ```python 
 (env)$ python manage.py makemigrations
 (env)$ python manage.py migrate
 ```
 
-Register the model in *blog/admin.py*:
+Register the models in *shop/admin.py*:
 
 ```python
 # shop/admin.py
@@ -120,7 +160,7 @@ admin.site.register(Purchase)
 
 In order to create charts we first need some data to work with. I've prepared a simple function which we will register as a Django command and use in order to generate some sample data.
 
-Move to the *shop* directory and create a new folder called *management* inside that folder create another folder called *commands*. Now create a new file inside that folder called *populate_db.py* and put the following inside:
+Move to the *shop* directory and create a new folder called *management*, inside that folder create another folder called *commands*. Inside of the *commands* folder create a new file called *populate_db.py* and put the following inside:
 
 ```python
 # shop/management/commands/populate_db.py
@@ -164,13 +204,13 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('Successfully populated the database.'))
 ```
 
-This command generates a few sample items and creates sample purchases.
-
 Run the following command to populate the DB:
 
 ```ssh
-(venv)$ python manage.py populate_db --amount 2500
+(venv)$ python manage.py populate_db --amount 1000
 ```
+
+If everything went successfully you should see `Successfully populated the database.` message in the console.
 
 > You can specify a custom amount, the amount represents the number of purchases.
 
@@ -178,11 +218,12 @@ Run the following command to populate the DB:
 
 Our app is going to have the following endpoints:
 
+1. `statistics/` is going to display the charts
 1. `chart/filter-options/` lists all the years we have the records for
 1. `chart/sales/<YEAR>/` fetches monthly gross volume data
-1. `chart/spend-per-customer/<YEAR>/` monthly spend per customer data
-1. `chart/payment-success/YEAR/` yearly success data
-1. `chart/payment-method/YEAR/` yearly payment method data
+1. `chart/spend-per-customer/<YEAR>/` fetches monthly spend per customer data
+1. `chart/payment-success/YEAR/` fetches yearly success data
+1. `chart/payment-method/YEAR/` fetches yearly payment method data
 
 Before writing our *shop*'s' views let's create an util class which will come in handy when creating charts. Move to our project root and create a new directory called *util* and inside of this directory create a file called *charts.py*:
 
@@ -223,6 +264,8 @@ In this util file we defined our chart colors and created the following two meth
 1. `get_year_dict()` prepares a dictionary `(<MONTH>, 0)` which we are going to use to fill in the monthly data.
 1. `generate_color_palette(amount)` generates a repeating color palette that we will pass to our charts.
 
+### Views
+
 Create the views:
 
 ```python
@@ -235,6 +278,11 @@ from django.http import JsonResponse
 
 from shop.models import Purchase
 from util.charts import months, colorPrimary, colorSuccess, colorDanger, generate_color_palette, get_year_dict
+
+
+@staff_member_required
+def statistics_view(request):
+    return render(request, "shop/statistics.html", {})
 
 
 @staff_member_required
@@ -346,7 +394,15 @@ def payment_method_chart(request, year):
     })
 ```
 
-!! Explain every method
+1. `get_filter_options(request)`
+1. `get_sales_chart(request, year)`
+1. `spend_per_customer_chart(request, year)`
+1. `payment_success_chart(request, year)`
+1. `payment_method_chart(request, year)`
+
+> Note that all the views have `@staff_member_required` decorator.
+
+### Urls
 
 Create urls for our views:
 
@@ -358,6 +414,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    path('statistics/', views.statistics_view, name='shop-statistics'),
     path('chart/filter-options/', views.get_filter_options, name='chart-filter-options'),
     path('chart/sales/<int:year>/', views.get_sales_chart, name='chart-sales'),
     path('chart/spend-per-customer/<int:year>/', views.spend_per_customer_chart, name='chart-spend-per-customer'),
@@ -379,6 +436,8 @@ urlpatterns = [
     path('shop/', include('shop.urls')),  # new
 ]
 ```
+
+### Testing
 
 Now that we registered the urls, let's test the endpoints to see if everything works correctly. Firstly, visit [http://localhost:8000/shop/chart/filter-options/](http://localhost:8000/shop/chart/filter-options/). It should return something like this:
 
@@ -424,142 +483,107 @@ Pick a year and let's take a look at the sales data for it. Visit [http://localh
 }
 ```
 
-## Create charts using chart.js
-
-Chart.js expects three lists for its charts: a list of labels, a list of values, and a list of colours (in hex-codes). We’re using the zip function with * to iterate through lists of tuples [(label, value), (label value)].
-
-Explanation of how to create a simple chart, what you have to provide:
-
-Create a canvas:
-
-```html
-<canvas id="myChart"></canvas>
-```
-
-Creating a sample chart:
-
-```html
-<script>
-    var ctx = document.getElementById('myChart').getContext('2d');
-    var chart = new Chart(ctx, {
-        // The type of chart we want to create
-        type: 'line',
-
-        // The data for our dataset
-        data: {
-            labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
-            datasets: [{
-                label: 'My First dataset',
-                backgroundColor: 'rgb(255, 99, 132)',
-                borderColor: 'rgb(255, 99, 132)',
-                data: [0, 10, 5, 2, 20, 30, 45]
-            }]
-        },
-
-        // Configuration options go here
-        options: {}
-    });
-</script>
-```
-
-### Add chart.js
-
-We also added bootstrap-grid and jquery explain!!
-
-```html
-<script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
-```
+## Create charts using Chart.js
 
 Add the following HTML:
 
 ```html
-{% extends "admin/base_site.html" %}
+<!-- shop/templates/shop/statistics.html -->
 
-{% block content %}
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js" crossorigin="anonymous"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-v4-grid-only@1.0.0/dist/bootstrap-grid.min.css">
-    <form id="filterForm">
-        <label for="year">Choose a year:</label>
-        <select name="year" id="year"></select>
-        <input type="submit" value="Load" name="_load">
-    </form>
-    <div class="row">
-        <div class="col-6">
-            <canvas id="salesChart"></canvas>
-        </div>
-        <div class="col-6">
-            <canvas id="paymentSuccessChart"></canvas>
-        </div>
-        <div class="col-6">
-            <canvas id="spendPerCustomerChart"></canvas>
-        </div>
-        <div class="col-6">
-            <canvas id="paymentMethodChart"></canvas>
-        </div>
-    </div>
-    <script>
-        let salesCtx = document.getElementById('salesChart').getContext('2d');
-        let salesChart = new Chart(salesCtx, {
-            type: 'bar',
-            options: {
-                responsive: true,
-                title: {
-                    text: "",
-                    display: true
-                }
-            }
-        });
-        let spendPerCustomerCtx = document.getElementById('spendPerCustomerChart').getContext('2d');
-        let spendPerCustomerChart = new Chart(spendPerCustomerCtx, {
-            type: 'line',
-            options: {
-                responsive: true,
-                title: {
-                    text: 'Spend per customer',
-                    display: true
-                }
-            }
-        });
-        let paymentSuccessCtx = document.getElementById('paymentSuccessChart').getContext('2d');
-        let paymentSuccessChart = new Chart(paymentSuccessCtx, {
-            type: 'pie',
-            options: {
-                responsive: true,
-                title: {
-                    text: 'Spend per customer',
-                    display: true
-                },
-                layout: {
-                    padding: {
-                        left: 0,
-                        right: 0,
-                        top: 0,
-                        bottom: 25
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Statistics</title>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
+        <script src="https://code.jquery.com/jquery-3.5.1.min.js" crossorigin="anonymous"></script>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-v4-grid-only@1.0.0/dist/bootstrap-grid.min.css">
+    </head>
+    <body>
+        <div class="container">
+            <form id="filterForm">
+                <label for="year">Choose a year:</label>
+                <select name="year" id="year"></select>
+                <input type="submit" value="Load" name="_load">
+            </form>
+            <div class="row">
+                <div class="col-6">
+                    <canvas id="salesChart"></canvas>
+                </div>
+                <div class="col-6">
+                    <canvas id="paymentSuccessChart"></canvas>
+                </div>
+                <div class="col-6">
+                    <canvas id="spendPerCustomerChart"></canvas>
+                </div>
+                <div class="col-6">
+                    <canvas id="paymentMethodChart"></canvas>
+                </div>
+            </div>
+            <script>
+                let salesCtx = document.getElementById('salesChart').getContext('2d');
+                let salesChart = new Chart(salesCtx, {
+                    type: 'bar',
+                    options: {
+                        responsive: true,
+                        title: {
+                            text: "",
+                            display: true
+                        }
                     }
-                }
-            }
-        });
-        let paymentMethodCtx = document.getElementById('paymentMethodChart').getContext('2d');
-        let paymentMethodChart = new Chart(paymentMethodCtx, {
-            type: 'pie',
-            options: {
-                responsive: true,
-                title: {
-                    text: 'Payment method',
-                    display: true
-                },
-                layout: {
-                    padding: {
-                        left: 0,
-                        right: 0,
-                        top: 0,
-                        bottom: 25
+                });
+                let spendPerCustomerCtx = document.getElementById('spendPerCustomerChart').getContext('2d');
+                let spendPerCustomerChart = new Chart(spendPerCustomerCtx, {
+                    type: 'line',
+                    options: {
+                        responsive: true,
+                        title: {
+                            text: 'Spend per customer',
+                            display: true
+                        }
                     }
-                }
-            }
-        });
-    </script>
+                });
+                let paymentSuccessCtx = document.getElementById('paymentSuccessChart').getContext('2d');
+                let paymentSuccessChart = new Chart(paymentSuccessCtx, {
+                    type: 'pie',
+                    options: {
+                        responsive: true,
+                        title: {
+                            text: 'Spend per customer',
+                            display: true
+                        },
+                        layout: {
+                            padding: {
+                                left: 0,
+                                right: 0,
+                                top: 0,
+                                bottom: 25
+                            }
+                        }
+                    }
+                });
+                let paymentMethodCtx = document.getElementById('paymentMethodChart').getContext('2d');
+                let paymentMethodChart = new Chart(paymentMethodCtx, {
+                    type: 'pie',
+                    options: {
+                        responsive: true,
+                        title: {
+                            text: 'Payment method',
+                            display: true
+                        },
+                        layout: {
+                            padding: {
+                                left: 0,
+                                right: 0,
+                                top: 0,
+                                bottom: 25
+                            }
+                        }
+                    }
+                });
+            </script>
+        </div>
+    </body>
+</html>
 {% endblock %}
 ```
 
@@ -633,14 +657,15 @@ Chart functions:
 
 ## Add charts to Django admin
 
-we can use two different approaches:
+We have multiple approaches to integrate charts to our Django administration. We can:
 
-1. creating a new admin view
-1. overriding an admin django template
+1. Create a new Django admin view
+1. Override an existing admin template
+1. Use a 3rd party package (eg. [django-admin-tools](https://github.com/django-admin-tools/django-admin-tools))
 
-### Adding new admin views
+### Create a new Django admin view
 
-Put the statistics file into *shop/templates/shop/admin/statistics.html*.
+Creating a new Django admin view is the cleanest and the most straight forward approach. Firstly, create the templates directory inside your shop application, then create a shop directory then an admin directory and finally create *statistics.html* inside.
 
 ```python
 # core/admin.py
@@ -709,9 +734,13 @@ INSTALLED_APPS = [
 ]
 ```
 
-### Overriding Django admin templates
+### Override an existing admin template
 
-You can override any admin template by.
+You can always extend admin templates and override the parts you want. You can copy some parts from admin template and change them the way you want.
+
+### Use a 3rd party package
+
+describe
 
 ## Conclusion
 
