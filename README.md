@@ -281,11 +281,6 @@ from util.charts import months, colorPrimary, colorSuccess, colorDanger, generat
 
 
 @staff_member_required
-def statistics_view(request):
-    return render(request, "shop/statistics.html", {})
-
-
-@staff_member_required
 def get_filter_options(request):
     grouped_purchases = Purchase.objects.annotate(year=ExtractYear('time')).values('year').order_by('-year').distinct()
     options = [purchase['year'] for purchase in grouped_purchases]
@@ -414,7 +409,6 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    path('statistics/', views.statistics_view, name='shop-statistics'),
     path('chart/filter-options/', views.get_filter_options, name='chart-filter-options'),
     path('chart/sales/<int:year>/', views.get_sales_chart, name='chart-sales'),
     path('chart/spend-per-customer/<int:year>/', views.spend_per_customer_chart, name='chart-spend-per-customer'),
@@ -485,7 +479,7 @@ Pick a year and let's take a look at the sales data for it. Visit [http://localh
 
 ## Create charts using Chart.js
 
-Add the following HTML:
+For now create a new file called *statistics.html* inside the shop templates folder and put the following inside:
 
 ```html
 <!-- shop/templates/shop/statistics.html -->
@@ -525,10 +519,6 @@ Add the following HTML:
                     type: 'bar',
                     options: {
                         responsive: true,
-                        title: {
-                            text: "",
-                            display: true
-                        }
                     }
                 });
                 let spendPerCustomerCtx = document.getElementById('spendPerCustomerChart').getContext('2d');
@@ -536,10 +526,6 @@ Add the following HTML:
                     type: 'line',
                     options: {
                         responsive: true,
-                        title: {
-                            text: 'Spend per customer',
-                            display: true
-                        }
                     }
                 });
                 let paymentSuccessCtx = document.getElementById('paymentSuccessChart').getContext('2d');
@@ -547,10 +533,6 @@ Add the following HTML:
                     type: 'pie',
                     options: {
                         responsive: true,
-                        title: {
-                            text: 'Spend per customer',
-                            display: true
-                        },
                         layout: {
                             padding: {
                                 left: 0,
@@ -566,10 +548,6 @@ Add the following HTML:
                     type: 'pie',
                     options: {
                         responsive: true,
-                        title: {
-                            text: 'Payment method',
-                            display: true
-                        },
                         layout: {
                             padding: {
                                 left: 0,
@@ -587,11 +565,9 @@ Add the following HTML:
 {% endblock %}
 ```
 
-1. Explanation 1
-1. Explanation 2
-1. Explanation 3
+This block of code creates the canvases and initializes the charts.
 
-Chart functions:
+Add the following script to your HTML file:
 
 ```html
 <script>
@@ -636,6 +612,7 @@ Chart functions:
 
                 // Load new data into the chart
                 chart.options.title.text = title;
+                chart.options.title.display = true;
                 chart.data.labels = labels;
                 datasets.forEach(dataset => {
                     chart.data.datasets.push(dataset);
@@ -655,6 +632,43 @@ Chart functions:
 </script>
 ```
 
+When the page loads this script sends an AJAX request to `/chart/filter-options/` to fetch all the active years and loads them into the form.
+
+1. `loadChart` loads chart data from the Django endpoint into the chart
+2. `loadAllCharts` loads all the charts
+
+### Create a view and assign it an URL
+
+> In this step we are going to create a normal view and assign an URL to it. If you want to add charts to your admin dashboard skip to the next step.
+
+Inside *shop/urls.py* create a new view:
+
+```python
+# shop/views.py
+
+@staff_member_required
+def statistics_view(request):
+    return render(request, "shop/statistics.html", {})
+```
+
+Assign an URL to the view:
+
+```python
+# shop/urls.py
+
+from django.urls import path
+
+from . import views
+
+urlpatterns = [
+    path('statistics/', views.statistics_view, name='shop-statistics'),  # new
+    path('chart/filter-options/', views.get_filter_options, name='chart-filter-options'),
+    ...
+]
+```
+
+Your charts are now accessible at: [http://localhost:8000/shop/statistics/](http://localhost:8000/shop/statistics/).
+
 ## Add charts to Django admin
 
 We have multiple approaches to integrate charts to our Django administration. We can:
@@ -665,7 +679,9 @@ We have multiple approaches to integrate charts to our Django administration. We
 
 ### Create a new Django admin view
 
-Creating a new Django admin view is the cleanest and the most straight forward approach. Firstly, create the templates directory inside your shop application, then create a shop directory then an admin directory and finally create *statistics.html* inside.
+Creating a new Django admin view is the cleanest and the most straight forward approach. In this approach we are going to have to create a new `AdminSite` and change it in our *settings.py*.
+
+Firstly, create the templates directory inside your shop application, then create a shop directory then an admin directory and finally create *statistics.html* inside.
 
 ```python
 # core/admin.py
@@ -710,6 +726,8 @@ class CustomAdminSite(admin.AdminSite):
         return urls
 ```
 
+Create an `AdminConfig` inside *core/apps.py*:
+
 ```python
 # core/apps.py
 
@@ -720,7 +738,7 @@ class CustomAdminConfig(AdminConfig):
     default_site = 'core.admin.CustomAdminSite'
 ```
 
-Register the new AdminConfig in *settings.py*:
+Replace the default `AdminConfig` with the new one in *core/settings.py*:
 
 ```python
 INSTALLED_APPS = [
@@ -734,13 +752,23 @@ INSTALLED_APPS = [
 ]
 ```
 
+The final result:
+
+![Django admin new app](https://i.ibb.co/XyXxj3V/new-app.png)
+
+Click on 'View' to see the charts:
+
+![Chart preview](https://i.ibb.co/WysdG50/app-details.png)
+
 ### Override an existing admin template
 
 You can always extend admin templates and override the parts you want. You can copy some parts from admin template and change them the way you want.
 
-### Use a 3rd party package
+If you wanted to put charts under your shop models, you can do that by overriding *django-interactive-charts/shop/templates/admin/shop/app_index.html* and put the following inside: [app_index.html](https://gist.github.com/duplxey/5c9d17ccf2bdd2bc904d0546c044c2b1)
 
-describe
+Final result:
+
+![Django admin template overriding](https://i.ibb.co/qNHFLCX/shop-dashboard.png)
 
 ## Conclusion
 
