@@ -1,10 +1,10 @@
 # Django Interactive Charts
 
-In this tutorial we'll look at how to create interactive charts using [Django](https://www.djangoproject.com/) and [Chart.js](https://www.chartjs.org/). We will use Django to model and prepare the data and then fetch it asynchronously from our template using AJAX.
+In this tutorial, we'll look at how to create interactive charts using [Django](https://www.djangoproject.com/) and [Chart.js](https://www.chartjs.org/). We will use Django to model and prepare the data and then fetch it asynchronously from our template using AJAX.
 
 ## What is Chart.js
 
-[Chart.js](https://www.chartjs.org/) is a free open-source JavaScript library for data visualization. It supports eight different chart types: bar, line, area, pie, bubble, radar, polar, and scatter. It is flexible, highly customizable, supports animations and is easy to use.
+[Chart.js](https://www.chartjs.org/) is a free open-source JavaScript library for data visualization. It supports eight different chart types: bar, line, area, pie, bubble, radar, polar, and scatter. It is flexible, highly customizable, supports animations, and is easy to use.
 
 Let's look at an example. Firstly, you have to include the library:
 
@@ -43,13 +43,14 @@ let chart = new Chart(ctx, {
 ```
 
 This code creates the following chart:
+
 ![Chart example](https://i.ibb.co/Rpt09xL/gross-volume-2020.png)
 
 > To learn more about Chart.js start by reading the [official documentation](https://www.chartjs.org/docs/latest/).
 
 ## Project Setup
 
-We are going to create a simple shop application. We will generate sample data using a function and then visualize it using charts. At the end we will also take a look at how we can integrate the charts into our Django administration dashboard.
+We are going to create a simple shop application. We will generate sample data using a function and then visualize it using charts. At the end, we will also take a look at how we can integrate the charts into our Django administration dashboard.
 
 > You can swap [Chart.js](https://www.chartjs.org/) for any other JavaScript chart library like [D3.js](https://d3js.org/) or [morris.js](http://morrisjs.github.io/morris.js/). However, you will have to adjust the data format in your application's endpoints.
 
@@ -158,7 +159,7 @@ admin.site.register(Purchase)
 
 ### Populate the Database
 
-In order to create charts we first need some data to work with. I've created a simple command we can use to populate the database.
+To create charts we first need some data to work with. I've created a simple command we can use to populate the database.
 
 Move to the *shop* directory and create a new folder called *management*, inside that folder create another folder called *commands*. Inside of the *commands* folder create a new file called *populate_db.py* and put the following code inside:
 
@@ -224,7 +225,7 @@ Our app is going to have the following endpoints:
 1. `chart/payment-success/YEAR/` fetches yearly payment success data
 1. `chart/payment-method/YEAR/` fetches yearly payment method data
 
-Before writing our *shop* views let's create an util class which will come in handy when creating charts. Move to our project root and create a new directory called *util* and inside of this directory create a file called *charts.py*:
+Before writing our *shop* views let's create a util class that will come in handy when creating charts. Move to our project root and create a new directory called *util* and inside of this directory create a file called *charts.py*:
 
 ```python
 # util/charts.py
@@ -472,7 +473,7 @@ Pick a year and let's take a look at the sales data for it. Visit [http://localh
 
 ## Create charts using Chart.js
 
-For now create a new file called *statistics.html* inside the shop templates folder and put the following inside:
+For now, create a new file called *statistics.html* inside the shop templates folder and put the following inside:
 
 ```html
 <!-- shop/templates/shop/statistics.html -->
@@ -674,9 +675,9 @@ We have multiple approaches to integrate charts to our Django administration. We
 
 ### Create a new Django admin view
 
-Creating a new Django admin view is the cleanest and the most straight forward approach. In this approach we are going to create a new `AdminSite` and change it in our *settings.py*.
+Creating a new Django admin view is the cleanest and the most straight forward approach. In this approach, we are going to create a new `AdminSite` and change it in our *settings.py*.
 
-Firstly, create the templates directory inside your shop application, then create a shop directory then an admin directory and finally create *statistics.html* inside.
+Firstly, create the templates directory inside your shop application, then create a shop directory then an admin directory, and finally create *statistics.html* inside.
 
 ```python
 # core/admin.py
@@ -757,7 +758,7 @@ Click on 'View' to see the charts:
 
 ### Override an existing admin template
 
-You can always extend admin templates and override the parts you want. You can copy some parts from admin template and change them the way you want.
+You can always extend admin templates and override the parts you want. You can copy some parts from the admin template and change them the way you want.
 
 If you wanted to put charts under your shop models, you can do that by overriding *django-interactive-charts/shop/templates/admin/shop/app_index.html* and put the following inside: [app_index.html](https://gist.github.com/duplxey/5c9d17ccf2bdd2bc904d0546c044c2b1)
 
@@ -767,6 +768,6 @@ Final result:
 
 ## Conclusion
 
-In this article we learned how to serve data with Django and then visualize it using Chart.js. We also looked at three different approaches we can use to integrate charts into your Django administration.
+In this article, we learned how to serve data with Django and then visualize it using Chart.js. We also looked at three different approaches we can use to integrate charts into your Django administration.
 
 Grab the code from the [django-interactive-charts](https://github.com/duplxey/django-interactive-charts) repo on GitHub.
