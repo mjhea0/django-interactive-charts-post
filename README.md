@@ -1,65 +1,75 @@
-# Django Interactive Charts
+# Adding Charts to the Django Admin with Chart.js
 
-In this tutorial, we'll look at how to create interactive charts using [Django](https://www.djangoproject.com/) and [Chart.js](https://www.chartjs.org/). We will use Django to model and prepare the data and then fetch it asynchronously from our template using AJAX.
+In this tutorial, we'll look at how to add interactive charts to the Django admin with [Chart.js](https://www.chartjs.org/). We'll use Django to model and prepare the data and then fetch it asynchronously from our template using AJAX.
 
-## What is Chart.js
+## What is Chart.js?
 
-[Chart.js](https://www.chartjs.org/) is a free open-source JavaScript library for data visualization. It supports eight different chart types: bar, line, area, pie, bubble, radar, polar, and scatter. It is flexible, highly customizable, supports animations, and is easy to use.
+[Chart.js](https://www.chartjs.org/) is a free, open-source JavaScript library for data visualization. It supports eight different chart types: bar, line, area, pie, bubble, radar, polar, and scatter. It's flexible and highly customizable. It supports animations. Add best of all, it's easy to use.
 
-Let's look at an example. Firstly, you have to include the library:
+To get started, you just need to include Chart.js script along with a `<canvas>` node:
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4"></script>
+
+<canvas id="chart" width="500" height="500"></canvas>
 ```
 
-Then create a new HTML5 canvas and assign an ID to it:
+Then, you can create a chart like so:
 
-```html
-<canvas id="chart"></canvas>
-```
+```javascript
+let ctx = document.getElementById("chart").getContext("2d");
 
-Lastly, you have to get your canvas using JavaScript and create a new chart like so:
-
-```html
-let ctx = document.getElementById('chart').getContext('2d');
 let chart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-        labels: ['2020/Q1', '2020/Q2', '2020/Q3', '2020/Q4'],
-        datasets: [{
-            label: 'Gross volume ($)',
-            backgroundColor: '#79AEC8',
-            borderColor: '#417690',
-            data: [26900, 28700, 27300, 29200]
-        }]
-    },
-    options: {
-        title: {
-            text: "Gross Volume in 2020",
-            display: true,
-        }
-    }
+  type: "bar",
+  data: {
+	 labels: ["2020/Q1", "2020/Q2", "2020/Q3", "2020/Q4"],
+	 datasets: [
+		{
+		  label: "Gross volume ($)",
+		  backgroundColor: "#79AEC8",
+		  borderColor: "#417690",
+		  data: [26900, 28700, 27300, 29200]
+		}
+	 ]
+  },
+  options: {
+	 title: {
+		text: "Gross Volume in 2020",
+		display: true
+	 }
+  }
 });
 ```
 
 This code creates the following chart:
 
-![Chart example](https://i.ibb.co/Rpt09xL/gross-volume-2020.png)
+<p class="codepen" data-height="500" data-theme-id="0" data-default-tab="result" data-user="mjhea0" data-slug-hash="wvogmJy" style="height: 501px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border: 2px solid; margin: 1em 0; padding: 1em;" data-pen-title="wvogmJy">
+  <span>See the Pen <a href="https://codepen.io/mjhea0/pen/wvogmJy/">
+  wvogmJy</a> by Michael Herman (<a href="https://codepen.io/mjhea0">@mjhea0</a>)
+  on <a href="https://codepen.io">CodePen</a>.</span>
+</p>
+<script async src="https://static.codepen.io/assets/embed/ei.js"></script>
 
-> To learn more about Chart.js start by reading the [official documentation](https://www.chartjs.org/docs/latest/).
+<p></p>
+
+[CodePen link](https://codepen.io/mjhea0/pen/wvogmJy)
+
+> To learn more about Chart.js check out the [official documentation](https://www.chartjs.org/docs/latest/).
+
+With that, let's look at how to customize the Django admin with Chart.js.
 
 ## Project Setup
 
-We are going to create a simple shop application. We will generate sample data using a function and then visualize it using charts. At the end, we will also take a look at how we can integrate the charts into our Django administration dashboard.
+Let's create a simple shop application. We'll generate sample data using a Django command and then visualize it with Chart.js in the Django administration dashboard.
 
 > You can swap [Chart.js](https://www.chartjs.org/) for any other JavaScript chart library like [D3.js](https://d3js.org/) or [morris.js](http://morrisjs.github.io/morris.js/). However, you will have to adjust the data format in your application's endpoints.
 
-Our code flow is going to be the following:
+Workflow:
 
 1. Fetch data using Django ORM queries
-1. Format the data and return it in a protected endpoint
+1. Format the data and return it via a protected endpoint
 1. Request the data from a template using AJAX
-1. Initialize charts and load in the data
+1. Initialize Chart.js and load in the data
 
 Start by creating a new directory and setting up a new Django project:
 
@@ -68,7 +78,7 @@ $ mkdir django-interactive-charts && cd django-interactive-charts
 $ python3.9 -m venv env
 $ source env/bin/activate
 
-(env)$ pip install django==3.1.5
+(env)$ pip install django==3.1.6
 (env)$ django-admin.py startproject core .
 ```
 
@@ -96,7 +106,7 @@ INSTALLED_APPS = [
 
 ### Create Database Models
 
-Next, create the `Item` and the `Purchase` model.
+Next, create `Item` and `Purchase` models:
 
 ```python
 # shop/models.py
@@ -134,11 +144,11 @@ class Purchase(models.Model):
 ```
 
 1. `Item` represents an item in our store
-1. `Purchase` represents a purchase (that is linked to an Item)
+1. `Purchase` represents a purchase (that's linked to an `Item`)
 
 Make migrations and then apply them:
 
-```python 
+```sh
 (env)$ python manage.py makemigrations
 (env)$ python manage.py migrate
 ```
@@ -159,13 +169,21 @@ admin.site.register(Purchase)
 
 ### Populate the Database
 
-To create charts we first need some data to work with. I've created a simple command we can use to populate the database.
+Before creating any charts, we need some data to work with. I've created a simple command we can use to populate the database.
 
-Move to the *shop* directory and create a new folder called *management*, inside that folder create another folder called *commands*. Inside of the *commands* folder create a new file called *populate_db.py* and put the following code inside:
+Create a new folder in "shop" called "management", and then inside that folder create another folder called "commands". Inside of the "commands" folder create a new file called *populate_db.py*.
+
+```sh
+management
+└── commands
+    └── populate_db.py
+```
+
+*populate_db.py*:
 
 ```python
 # shop/management/commands/populate_db.py
-  
+
 import random
 from datetime import datetime, timedelta
 
@@ -211,21 +229,21 @@ Run the following command to populate the DB:
 (venv)$ python manage.py populate_db --amount 1000
 ```
 
-If everything went successfully you should see `Successfully populated the database.` message in the console.
+If everything went well you should see a `Successfully populated the database.` message in the console.
 
-> You can specify a custom amount, the amount represents the number of purchases.
+> You can specify a custom amount; the amount represents the number of purchases.
 
-## Prepare and serve the data
+## Prepare and Serve the Data
 
-Our app is going to have the following endpoints:
+Our app will have the following endpoints:
 
-1. `chart/filter-options/` lists all the years we have the records for
-1. `chart/sales/<YEAR>/` fetches monthly gross volume data
-1. `chart/spend-per-customer/<YEAR>/` fetches monthly spend per customer data
+1. `chart/filter-options/` lists all the years we have records for
+1. `chart/sales/<YEAR>/` fetches monthly gross volume data by year
+1. `chart/spend-per-customer/<YEAR>/` fetches monthly spend per customer by year
 1. `chart/payment-success/YEAR/` fetches yearly payment success data
 1. `chart/payment-method/YEAR/` fetches yearly payment method data
 
-Before writing our *shop* views let's create a util class that will come in handy when creating charts. Move to our project root and create a new directory called *util* and inside of this directory create a file called *charts.py*:
+Next, let's create a few utility functions that will make it easier to create the charts. Add a new folder in the project root called "utils". Then, add a new file to that folder called *charts.py*:
 
 ```python
 # util/charts.py
@@ -240,12 +258,12 @@ colorPrimary, colorSuccess, colorDanger = '#79aec8', colorPalette[0], colorPalet
 
 
 def get_year_dict():
-    dictionary = dict()
+    year_dict = dict()
 
     for month in months:
-        dictionary[month] = 0
+        year_dict[month] = 0
 
-    return dictionary
+    return year_dict
 
 
 def generate_color_palette(amount):
@@ -259,10 +277,10 @@ def generate_color_palette(amount):
     return palette
 ```
 
-In this util file we defined our chart colors and created the following two methods:
+So, we defined our chart colors and created the following two methods:
 
-1. `get_year_dict()` prepares a dictionary `(<MONTH>, 0)` which we are going to use to fill in the monthly data.
-1. `generate_color_palette(amount)` generates a repeating color palette that we will pass to our charts.
+1. `get_year_dict()` creates a dictionary of months and values, which we'll use to add the monthly data to.
+1. `generate_color_palette(amount)` generates a repeating color palette that we'll pass to our charts.
 
 ### Views
 
@@ -277,7 +295,7 @@ from django.db.models.functions import ExtractYear, ExtractMonth
 from django.http import JsonResponse
 
 from shop.models import Purchase
-from util.charts import months, colorPrimary, colorSuccess, colorDanger, generate_color_palette, get_year_dict
+from utils.charts import months, colorPrimary, colorSuccess, colorDanger, generate_color_palette, get_year_dict
 
 
 @staff_member_required
@@ -389,11 +407,13 @@ def payment_method_chart(request, year):
     })
 ```
 
+TODO: can you summarize these views. One to two sentences for each one.
+
 > Note that all the views have `@staff_member_required` decorator.
 
 ### Urls
 
-Create urls for our views:
+Create the app-level URLs for the views:
 
 ```python
 # shop/urls.py
@@ -411,7 +431,7 @@ urlpatterns = [
 ]
 ```
 
-Connect *shop.urls* to our root urls:
+Then, wire up the app URLs to the project URLs:
 
 ```python
 # core/urls.py
@@ -427,7 +447,16 @@ urlpatterns = [
 
 ### Testing
 
-Now that we registered the urls, let's test the endpoints to see if everything works correctly. Firstly, visit [http://localhost:8000/shop/chart/filter-options/](http://localhost:8000/shop/chart/filter-options/). It should return something like this:
+Now that we registered the urls, let's test the endpoints to see if everything works correctly.
+
+Create a superuser, and then tun the development server:
+
+```sh
+(env)$ python manage.py createsuperuser
+(env)$ python manage.py runserver
+```
+
+Then, in your browser of choice, navigate to [http://localhost:8000/shop/chart/filter-options/](http://localhost:8000/shop/chart/filter-options/). You should see something like:
 
 ```json
 {
@@ -442,187 +471,202 @@ Now that we registered the urls, let's test the endpoints to see if everything w
 }
 ```
 
-Pick a year and let's take a look at the sales data for it. Visit [http://localhost:8000/shop/chart/sales/2020/](http://localhost:8000/shop/chart/sales/2020/). It should return sale data for year `2020`:
+To view the monthly sales data, first pick a year. For example, [http://localhost:8000/shop/chart/sales/2020/](http://localhost:8000/shop/chart/sales/2020/) should return sales data for 2020:
 
 ```json
 {
-   "title":"Sales in 2020",
-   "data":{
-      "labels":[
-         "January",
-         "February",
-         "March",
-         ...
-      ],
-      "datasets":[
-         {
-            "label":"Amount ($)",
-            "backgroundColor":"#79aec8",
-            "borderColor":"#79aec8",
-            "data":[
-               477,
-               552.5,
-               529.5,
-               ...
-            ]
-         }
-      ]
-   }
+  "title":"Sales in 2020",
+  "data":{
+    "labels":[
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December"
+    ],
+    "datasets":[
+      {
+        "label":"Amount ($)",
+        "backgroundColor":"#79aec8",
+        "borderColor":"#79aec8",
+        "data":[
+          137.0,
+          88.0,
+          187.5,
+          156.0,
+          70.5,
+          133.0,
+          142.0,
+          176.0,
+          155.5,
+          104.0,
+          125.5,
+          97.0
+        ]
+      }
+    ]
+  }
 }
 ```
 
-## Create charts using Chart.js
+## Create Charts with Chart.js
 
-For now, create a new file called *statistics.html* inside the shop templates folder and put the following inside:
+Add a "templates" folder to "shop". Then, add a new file called *statistics.html*:
 
 ```html
-<!-- shop/templates/shop/statistics.html -->
+<!-- shop/templates/statistics.html -->
 
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <title>Statistics</title>
-        <script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
-        <script src="https://code.jquery.com/jquery-3.5.1.min.js" crossorigin="anonymous"></script>
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-v4-grid-only@1.0.0/dist/bootstrap-grid.min.css">
-    </head>
-    <body>
-        <div class="container">
-            <form id="filterForm">
-                <label for="year">Choose a year:</label>
-                <select name="year" id="year"></select>
-                <input type="submit" value="Load" name="_load">
-            </form>
-            <div class="row">
-                <div class="col-6">
-                    <canvas id="salesChart"></canvas>
-                </div>
-                <div class="col-6">
-                    <canvas id="paymentSuccessChart"></canvas>
-                </div>
-                <div class="col-6">
-                    <canvas id="spendPerCustomerChart"></canvas>
-                </div>
-                <div class="col-6">
-                    <canvas id="paymentMethodChart"></canvas>
-                </div>
-            </div>
-            <script>
-                let salesCtx = document.getElementById('salesChart').getContext('2d');
-                let salesChart = new Chart(salesCtx, {
-                    type: 'bar',
-                    options: {
-                        responsive: true,
-                    }
-                });
-                let spendPerCustomerCtx = document.getElementById('spendPerCustomerChart').getContext('2d');
-                let spendPerCustomerChart = new Chart(spendPerCustomerCtx, {
-                    type: 'line',
-                    options: {
-                        responsive: true,
-                    }
-                });
-                let paymentSuccessCtx = document.getElementById('paymentSuccessChart').getContext('2d');
-                let paymentSuccessChart = new Chart(paymentSuccessCtx, {
-                    type: 'pie',
-                    options: {
-                        responsive: true,
-                        layout: {
-                            padding: {
-                                left: 0,
-                                right: 0,
-                                top: 0,
-                                bottom: 25
-                            }
-                        }
-                    }
-                });
-                let paymentMethodCtx = document.getElementById('paymentMethodChart').getContext('2d');
-                let paymentMethodChart = new Chart(paymentMethodCtx, {
-                    type: 'pie',
-                    options: {
-                        responsive: true,
-                        layout: {
-                            padding: {
-                                left: 0,
-                                right: 0,
-                                top: 0,
-                                bottom: 25
-                            }
-                        }
-                    }
-                });
-            </script>
+  <head>
+    <title>Statistics</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-v4-grid-only@1.0.0/dist/bootstrap-grid.min.css">
+  </head>
+  <body>
+    <div class="container">
+      <form id="filterForm">
+        <label for="year">Choose a year:</label>
+        <select name="year" id="year"></select>
+        <input type="submit" value="Load" name="_load">
+      </form>
+      <div class="row">
+        <div class="col-6">
+          <canvas id="salesChart"></canvas>
         </div>
-    </body>
+        <div class="col-6">
+          <canvas id="paymentSuccessChart"></canvas>
+        </div>
+        <div class="col-6">
+          <canvas id="spendPerCustomerChart"></canvas>
+        </div>
+        <div class="col-6">
+          <canvas id="paymentMethodChart"></canvas>
+        </div>
+      </div>
+      <script>
+        let salesCtx = document.getElementById('salesChart').getContext('2d');
+        let salesChart = new Chart(salesCtx, {
+          type: 'bar',
+          options: {
+            responsive: true,
+          }
+        });
+        let spendPerCustomerCtx = document.getElementById('spendPerCustomerChart').getContext('2d');
+        let spendPerCustomerChart = new Chart(spendPerCustomerCtx, {
+          type: 'line',
+          options: {
+            responsive: true,
+          }
+        });
+        let paymentSuccessCtx = document.getElementById('paymentSuccessChart').getContext('2d');
+        let paymentSuccessChart = new Chart(paymentSuccessCtx, {
+          type: 'pie',
+          options: {
+            responsive: true,
+            layout: {
+              padding: {
+                left: 0,
+                right: 0,
+                top: 0,
+                bottom: 25
+              }
+            }
+          }
+        });
+        let paymentMethodCtx = document.getElementById('paymentMethodChart').getContext('2d');
+        let paymentMethodChart = new Chart(paymentMethodCtx, {
+          type: 'pie',
+          options: {
+            responsive: true,
+            layout: {
+              padding: {
+                left: 0,
+                right: 0,
+                top: 0,
+                bottom: 25
+              }
+            }
+          }
+        });
+      </script>
+    </div>
+  </body>
 </html>
-{% endblock %}
 ```
 
-This block of code creates the HTML5 canvases which charts use to initialize. We also passed `responsive` to each charts' options so it adjusts based on the window size. 
+This block of code creates the HTML canvases that Chart.js uses to initialize. We also passed `responsive` to each charts' options so it adjusts based on the window size.
 
 Add the following script to your HTML file:
 
 ```html
 <script>
-    $(document).ready(function() {
-        $.ajax({
-            url: "/shop/chart/filter-options/",
-            type: "GET",
-            dataType: "json",
-            success: (jsonResponse) => {
-                // Load all the options
-                jsonResponse.options.forEach(option => {
-                    $("#year").append(new Option(option, option));
-                });
-                // Load data for the first option
-                loadAllCharts($("#year").children().first().val());
-            },
-            error: () => console.log("Failed to fetch chart filter options!")
+  $(document).ready(function() {
+    $.ajax({
+      url: "/shop/chart/filter-options/",
+      type: "GET",
+      dataType: "json",
+      success: (jsonResponse) => {
+        // Load all the options
+        jsonResponse.options.forEach(option => {
+          $("#year").append(new Option(option, option));
         });
+        // Load data for the first option
+        loadAllCharts($("#year").children().first().val());
+      },
+      error: () => console.log("Failed to fetch chart filter options!")
     });
+  });
 
-    $("#filterForm").on('submit', (event) => {
-        event.preventDefault();
+$("#filterForm").on('submit', (event) => {
+  event.preventDefault();
 
-        const year = $("#year").val();
-        loadAllCharts(year)
-    });
+  const year = $("#year").val();
+  loadAllCharts(year)
+});
 
-    function loadChart(chart, endpoint) {
-        $.ajax({
-            url: endpoint,
-            type: "GET",
-            dataType: "json",
-            success: (jsonResponse) => {
-                // Extract data from the response
-                const title = jsonResponse.title;
-                const labels = jsonResponse.data.labels;
-                const datasets = jsonResponse.data.datasets;
+function loadChart(chart, endpoint) {
+  $.ajax({
+    url: endpoint,
+    type: "GET",
+    dataType: "json",
+    success: (jsonResponse) => {
+      // Extract data from the response
+      const title = jsonResponse.title;
+      const labels = jsonResponse.data.labels;
+      const datasets = jsonResponse.data.datasets;
 
-                // Reset the current chart
-                chart.data.datasets = [];
-                chart.data.labels = [];
+      // Reset the current chart
+      chart.data.datasets = [];
+      chart.data.labels = [];
 
-                // Load new data into the chart
-                chart.options.title.text = title;
-                chart.options.title.display = true;
-                chart.data.labels = labels;
-                datasets.forEach(dataset => {
-                    chart.data.datasets.push(dataset);
-                });
-                chart.update();
-            },
-            error: () => console.log("Failed to fetch chart data from " + endpoint + "!")
-        });
-    }
+      // Load new data into the chart
+      chart.options.title.text = title;
+      chart.options.title.display = true;
+      chart.data.labels = labels;
+      datasets.forEach(dataset => {
+        chart.data.datasets.push(dataset);
+      });
+      chart.update();
+    },
+    error: () => console.log("Failed to fetch chart data from " + endpoint + "!")
+  });
+}
 
-    function loadAllCharts(year) {
-        loadChart(salesChart, `/shop/chart/sales/${year}/`);
-        loadChart(spendPerCustomerChart, `/shop/chart/spend-per-customer/${year}/`);
-        loadChart(paymentSuccessChart, `/shop/chart/payment-success/${year}/`);
-        loadChart(paymentMethodChart, `/shop/chart/payment-method/${year}/`);
-    }
+function loadAllCharts(year) {
+  loadChart(salesChart, `/shop/chart/sales/${year}/`);
+  loadChart(spendPerCustomerChart, `/shop/chart/spend-per-customer/${year}/`);
+  loadChart(paymentSuccessChart, `/shop/chart/payment-success/${year}/`);
+  loadChart(paymentMethodChart, `/shop/chart/payment-method/${year}/`);
+}
 </script>
 ```
 
@@ -633,18 +677,18 @@ When the page loads this script sends an AJAX request to `/chart/filter-options/
 
 > Note that we used jQuery's AJAX function. Feel free to use plain JavaScript requests.
 
-### Create a view and assign it an URL
-
-> In this step we are going to create a normal view and assign an URL to it. If you want to add charts to Django admin skip to the next step.
-
 Inside *shop/urls.py* create a new view:
 
 ```python
-# shop/views.py
-
 @staff_member_required
 def statistics_view(request):
-    return render(request, "shop/statistics.html", {})
+    return render(request, 'statistics.html', {})
+```
+
+Don't forget the import:
+
+```python
+from django.shortcuts import render
 ```
 
 Assign a URL to the view:
@@ -659,25 +703,166 @@ from . import views
 urlpatterns = [
     path('statistics/', views.statistics_view, name='shop-statistics'),  # new
     path('chart/filter-options/', views.get_filter_options, name='chart-filter-options'),
-    ...
+    path('chart/sales/<int:year>/', views.get_sales_chart, name='chart-sales'),
+    path('chart/spend-per-customer/<int:year>/', views.spend_per_customer_chart, name='chart-spend-per-customer'),
+    path('chart/payment-success/<int:year>/', views.payment_success_chart, name='chart-payment-success'),
+    path('chart/payment-method/<int:year>/', views.payment_method_chart, name='chart-payment-method'),
 ]
 ```
 
 Your charts are now accessible at: [http://localhost:8000/shop/statistics/](http://localhost:8000/shop/statistics/).
 
-## Add charts to Django admin
+## Add Charts to the Django Admin
 
-We have multiple approaches to integrate charts to our Django administration. We can:
+WIth regard to integrating charts into the Django admin, we can:
 
 1. Create a new Django admin view
 1. Override an existing admin template
-1. Use a 3rd party package (eg. [django-admin-tools](https://github.com/django-admin-tools/django-admin-tools))
+1. Use a third-party package (i.e., [django-admin-tools](https://github.com/django-admin-tools/django-admin-tools))
 
 ### Create a new Django admin view
 
-Creating a new Django admin view is the cleanest and the most straight forward approach. In this approach, we are going to create a new `AdminSite` and change it in our *settings.py*.
+Creating a new Django admin view is the cleanest and the most straight forward approach. In this approach, we'll create a new [AdminSite](https://docs.djangoproject.com/en/3.1/ref/contrib/admin/#django.contrib.admin.AdminSite) and change it in the *settings.py* file.
 
-Firstly, create the templates directory inside your shop application, then create a shop directory then an admin directory, and finally create *statistics.html* inside.
+First, within "shop/templates", add an "admin" folder. Add a *statistics.html* template to it:
+
+```html
+<!-- shop/templates/admin/statistics.html -->
+
+{% extends "admin/base_site.html" %}
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
+<script src="https://code.jquery.com/jquery-3.5.1.min.js" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-v4-grid-only@1.0.0/dist/bootstrap-grid.min.css">
+<form id="filterForm">
+  <label for="year">Choose a year:</label>
+  <select name="year" id="year"></select>
+  <input type="submit" value="Load" name="_load">
+</form>
+<script>
+  $(document).ready(function() {
+    $.ajax({
+      url: "/shop/chart/filter-options/",
+      type: "GET",
+      dataType: "json",
+      success: (jsonResponse) => {
+        // Load all the options
+        jsonResponse.options.forEach(option => {
+          $("#year").append(new Option(option, option));
+        });
+        // Load data for the first option
+        loadAllCharts($("#year").children().first().val());
+      },
+      error: () => console.log("Failed to fetch chart filter options!")
+    });
+  });
+
+  $("#filterForm").on('submit', (event) => {
+    event.preventDefault();
+
+    const year = $("#year").val();
+    loadAllCharts(year);
+  });
+
+  function loadChart(chart, endpoint) {
+    $.ajax({
+      url: endpoint,
+      type: "GET",
+      dataType: "json",
+      success: (jsonResponse) => {
+        // Extract data from the response
+        const title = jsonResponse.title;
+        const labels = jsonResponse.data.labels;
+        const datasets = jsonResponse.data.datasets;
+
+        // Reset the current chart
+        chart.data.datasets = [];
+        chart.data.labels = [];
+
+        // Load new data into the chart
+        chart.options.title.text = title;
+        chart.options.title.display = true;
+        chart.data.labels = labels;
+        datasets.forEach(dataset => {
+            chart.data.datasets.push(dataset);
+        });
+        chart.update();
+      },
+      error: () => console.log("Failed to fetch chart data from " + endpoint + "!")
+    });
+  }
+
+  function loadAllCharts(year) {
+    loadChart(salesChart, `/shop/chart/sales/${year}/`);
+    loadChart(spendPerCustomerChart, `/shop/chart/spend-per-customer/${year}/`);
+    loadChart(paymentSuccessChart, `/shop/chart/payment-success/${year}/`);
+    loadChart(paymentMethodChart, `/shop/chart/payment-method/${year}/`);
+  }
+</script>
+<div class="row">
+  <div class="col-6">
+    <canvas id="salesChart"></canvas>
+  </div>
+  <div class="col-6">
+    <canvas id="paymentSuccessChart"></canvas>
+  </div>
+  <div class="col-6">
+    <canvas id="spendPerCustomerChart"></canvas>
+  </div>
+  <div class="col-6">
+    <canvas id="paymentMethodChart"></canvas>
+  </div>
+</div>
+<script>
+  let salesCtx = document.getElementById('salesChart').getContext('2d');
+  let salesChart = new Chart(salesCtx, {
+    type: 'bar',
+    options: {
+      responsive: true,
+    }
+  });
+  let spendPerCustomerCtx = document.getElementById('spendPerCustomerChart').getContext('2d');
+  let spendPerCustomerChart = new Chart(spendPerCustomerCtx, {
+    type: 'line',
+    options: {
+      responsive: true,
+    }
+  });
+  let paymentSuccessCtx = document.getElementById('paymentSuccessChart').getContext('2d');
+  let paymentSuccessChart = new Chart(paymentSuccessCtx, {
+    type: 'pie',
+    options: {
+      responsive: true,
+      layout: {
+        padding: {
+          left: 0,
+          right: 0,
+          top: 0,
+          bottom: 25
+        }
+      }
+    }
+  });
+  let paymentMethodCtx = document.getElementById('paymentMethodChart').getContext('2d');
+  let paymentMethodChart = new Chart(paymentMethodCtx, {
+    type: 'pie',
+    options: {
+      responsive: true,
+      layout: {
+        padding: {
+          left: 0,
+          right: 0,
+          top: 0,
+          bottom: 25
+        }
+      }
+    }
+  });
+</script>
+{% endblock %}
+```
+
+*core/admin.py*:
 
 ```python
 # core/admin.py
@@ -690,7 +875,7 @@ from django.urls import path
 
 @staff_member_required
 def admin_statistics_view(request):
-    return render(request, 'shop/admin/statistics.html', {
+    return render(request, 'admin/statistics.html', {
         'title': 'Statistics'
     })
 
@@ -722,6 +907,8 @@ class CustomAdminSite(admin.AdminSite):
         return urls
 ```
 
+TODO: what's happening here?
+
 Create an `AdminConfig` inside *core/apps.py*:
 
 ```python
@@ -733,6 +920,8 @@ from django.contrib.admin.apps import AdminConfig
 class CustomAdminConfig(AdminConfig):
     default_site = 'core.admin.CustomAdminSite'
 ```
+
+TODO: what's happening here?
 
 Replace the default `AdminConfig` with the new one in *core/settings.py*:
 
@@ -748,6 +937,8 @@ INSTALLED_APPS = [
 ]
 ```
 
+Navigate to [http://localhost:8010/admin/statistics/](http://localhost:8010/admin/statistics/).
+
 The final result:
 
 ![Django admin new app](https://i.ibb.co/XyXxj3V/new-app.png)
@@ -760,7 +951,7 @@ Click on 'View' to see the charts:
 
 You can always extend admin templates and override the parts you want. You can copy some parts from the admin template and change them the way you want.
 
-If you wanted to put charts under your shop models, you can do that by overriding *django-interactive-charts/shop/templates/admin/shop/app_index.html* and put the following inside: [app_index.html](https://gist.github.com/duplxey/5c9d17ccf2bdd2bc904d0546c044c2b1)
+For example, if you wanted to put charts under your shop models, you can do that by overriding *django-interactive-charts/shop/templates/admin/shop/app_index.html* and put the following inside: [app_index.html](https://gist.github.com/duplxey/5c9d17ccf2bdd2bc904d0546c044c2b1)
 
 Final result:
 
@@ -768,6 +959,6 @@ Final result:
 
 ## Conclusion
 
-In this article, we learned how to serve data with Django and then visualize it using Chart.js. We also looked at three different approaches we can use to integrate charts into your Django administration.
+In this article, we learned how to serve data with Django and then visualize it using Chart.js. We also looked at three different approaches for integrating charts into your Django administration.
 
 Grab the code from the [django-interactive-charts](https://github.com/duplxey/django-interactive-charts) repo on GitHub.
