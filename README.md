@@ -407,7 +407,11 @@ def payment_method_chart(request, year):
     })
 ```
 
-TODO: can you summarize these views. One to two sentences for each one.
+1. `get_filter_options(request)` fetches all the purchases, groups them by year, extracts the year from the time field and returns them in array.
+1. `get_sales_chart(request, year)` fetches all the purchases (in a specific year) and its prices, groups them by month and calculates the monthly sum of prices.
+1. `spend_per_customer_chart(request, year)` fetches all the purchases (in a specific year) and its prices, groups them by month and calculates the average monthly price.
+1. `payment_success_chart(request, year)` counts successful and unsuccessful purchases in a specific year.
+1. `payment_method_chart(request, year)` fetches all the purchases in a specific year, groups them by payment method, counts the purchases and returns them in a dictionary.
 
 > Note that all the views have `@staff_member_required` decorator.
 
@@ -907,7 +911,7 @@ class CustomAdminSite(admin.AdminSite):
         return urls
 ```
 
-TODO: what's happening here?
+Here we created a staff protected view called `admin_statistics_view`. Then we created a new `AdminSite` and overrode `get_app_list` to add our own custom application to it. We provided our application with an artificial view-only model called `Statistics`. Lastly, we overrode `get_urls` and assigned an URL to our new view.
 
 Create an `AdminConfig` inside *core/apps.py*:
 
@@ -921,7 +925,7 @@ class CustomAdminConfig(AdminConfig):
     default_site = 'core.admin.CustomAdminSite'
 ```
 
-TODO: what's happening here?
+Here we created a new `AdminConfig` which loads our `CustomAdminSite` instead of Django's default one.
 
 Replace the default `AdminConfig` with the new one in *core/settings.py*:
 
